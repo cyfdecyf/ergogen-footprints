@@ -29,6 +29,10 @@
 //      Only effective when reversible is true.
 //      Middle pin is positive and the other two pins connect to GND. This allows choosing
 //      either left or right pin to be positive on each side of the PCB.
+//    housing_positive_on_left: false
+//      if true, when inserting the housing into the header of the connector (and looking
+//      from housing to header), the positive pin is on the left side.
+//      (This is the same polarity used by Adafruit and Sparkfun products.)
 //    include_traces: default is true
 //      if true it will include traces that connect the jumper pads to the connector pins
 //    trace_width: default is 0.250mm
@@ -67,6 +71,7 @@ module.exports = {
     side: 'F',
     reversible: false,
     use_3_thru_holes: false,
+    housing_positive_on_left: false,
     include_traces: true,
     trace_width: 0.250,
     include_silkscreen: true,
@@ -97,91 +102,84 @@ module.exports = {
             (effects (font (size 1 1) (thickness 0.15)))
         )
         `
-    const front_fabrication = `
-        (fp_line (start -2.95 -1.35) (end -2.95 6.25) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
-        (fp_line (start -2.95 6.25) (end 2.95 6.25) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
-        (fp_line (start -2.25 -1.35) (end -2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
-        (fp_line (start -2.25 0.25) (end -2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
-        (fp_line (start 2.25 -1.35) (end 2.25 0.25) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
-        (fp_line (start 2.25 0.25) (end -2.25 0.25) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
-        (fp_line (start 2.95 -1.35) (end 2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
-        (fp_line (start 2.95 6.25) (end 2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "F.Fab"))
+    // For variable names, housing "positive_{right,left}" is based on connector mounted on front side.
+    // For back side mounting, left and right are reversed.
+    const positive_right_fabrication = (side) => `
+        (fp_line (start -2.95 -1.35) (end -2.95 6.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start -2.95 6.25) (end 2.95 6.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start -2.25 -1.35) (end -2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start -2.25 0.25) (end -2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.25 -1.35) (end 2.25 0.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.25 0.25) (end -2.25 0.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.95 -1.35) (end 2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.95 6.25) (end 2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
         `
-    const front_courtyard = `
-        (fp_line (start -3.45 -1.85) (end -3.45 10.5) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
-        (fp_line (start -3.45 10.5) (end 3.45 10.5) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
-        (fp_line (start 3.45 -1.85) (end -3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
-        (fp_line (start 3.45 10.5) (end 3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
+    const positive_right_courtyard = (side) => `
+        (fp_line (start -3.45 -1.85) (end -3.45 10.5) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
+        (fp_line (start -3.45 10.5) (end 3.45 10.5) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
+        (fp_line (start 3.45 -1.85) (end -3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
+        (fp_line (start 3.45 10.5) (end 3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
         `
-    const front_silkscreen = (side) => {
-      const negative_2nd = p.reversible && p.use_3_thru_holes
-          ? `(fp_line (start 3.5 7.40) (end 2.5 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))`
-          : ``
+    // This draws four corners of a square for the connector.
+    const silkscreen_common = (side, offset = 0) => `
+        (fp_line (start ${-2.06 + offset} -1.46) (end ${-3.06 + offset} -1.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${-3.06 + offset} -1.46) (end ${-3.06 + offset} -0.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${2.14 + offset} -1.46) (end ${3.06 + offset} -1.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${3.06 + offset} -1.46) (end ${3.06 + offset} -0.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${-2.14 + offset} 6.36) (end ${-3.06 + offset} 6.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${-3.06 + offset} 6.36) (end ${-3.06 + offset} 5.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${2.14 + offset} 6.36) (end ${3.06 + offset} 6.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${3.06 + offset} 6.36) (end ${3.06 + offset} 5.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+      `
+    const positive_right_silkscreen = (side, offset = 0) => {
+      // This draws the positive on the right, then negative on left.
       return `
-        (fp_line (start -1.5 7.40) (end -0.5 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 1.5 7.40) (end 0.5 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 1 6.90) (end 1 7.90) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
-        ${negative_2nd}
-        (fp_line (start -2.06 -1.46) (end -3.06 -1.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -3.06 -1.46) (end -3.06 -0.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 2.14 -1.46) (end 3.06 -1.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 3.06 -1.46) (end 3.06 -0.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -2.14 6.36) (end -3.06 6.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -3.06 6.36) (end -3.06 5.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 2.14 6.36) (end 3.06 6.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 3.06 6.36) (end 3.06 5.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${1 + offset} 6.90) (end ${1 + offset} 7.90) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${1.5 + offset} 7.40) (end ${0.5 + offset} 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${-1.5 + offset} 7.40) (end ${-0.5 + offset} 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
+        ${silkscreen_common(side, offset)}
         `
     }
-    const back_fabrication = `
-        (fp_line (start -2.95 -1.35) (end -2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        (fp_line (start -2.95 6.25) (end -2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        (fp_line (start -2.25 -1.35) (end -2.25 0.25) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        (fp_line (start -2.25 0.25) (end 2.25 0.25) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        (fp_line (start 2.25 -1.35) (end 2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        (fp_line (start 2.25 0.25) (end 2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        (fp_line (start 2.95 -1.35) (end 2.95 6.25) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        (fp_line (start 2.95 6.25) (end -2.95 6.25) (stroke (width 0.1) (type solid)) (layer "B.Fab"))
-        `
-    const back_courtyard = `
-        (fp_line (start -3.45 -1.85) (end -3.45 10.5) (stroke (width 0.05) (type solid)) (layer "B.CrtYd"))
-        (fp_line (start -3.45 10.5) (end 3.45 10.5) (stroke (width 0.05) (type solid)) (layer "B.CrtYd"))
-        (fp_line (start 3.45 -1.85) (end -3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "B.CrtYd"))
-        (fp_line (start 3.45 10.5) (end 3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "B.CrtYd"))
-        `
-    const back_silkscreen = (side) => {
-      const negative_2nd = p.reversible && p.use_3_thru_holes
-        ? `(fp_line (start -3.5 7.40) (end -2.5 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))`
-        : ``
+    const positive_left_silkscreen = (side, offset = 0) => {
+      // This draws the negative on the right, then positve on the left.
       return `
-        (fp_line (start 1.5 7.40) (end 0.5 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -1.5 7.40) (end -0.5 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -1 6.90) (end -1 7.90) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
-        ${negative_2nd}
-        (fp_line (start -2.06 -1.46) (end -3.06 -1.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -3.06 -1.46) (end -3.06 -0.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 2.14 -1.46) (end 3.06 -1.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 3.06 -1.46) (end 3.06 -0.46) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -2.14 6.36) (end -3.06 6.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start -3.06 6.36) (end -3.06 5.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 2.14 6.36) (end 3.06 6.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
-        (fp_line (start 3.06 6.36) (end 3.06 5.36) (stroke (width 0.12) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${1.5 + offset} 7.40) (end ${0.5 + offset} 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${-1.5 + offset} 7.40) (end ${-0.5 + offset} 7.40) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
+        (fp_line (start ${-1 + offset} 6.90) (end ${-1 + offset} 7.90) (stroke (width 0.1) (type solid)) (layer "${side}.SilkS"))
+        ${silkscreen_common(side, offset)}
         `
     }
-    const front_pad_2nd_gnd = p.reversible && p.use_3_thru_holes
+    const positive_left_fabrication = (side) => `
+        (fp_line (start -2.95 -1.35) (end -2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start -2.95 6.25) (end -2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start -2.25 -1.35) (end -2.25 0.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start -2.25 0.25) (end 2.25 0.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.25 -1.35) (end 2.95 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.25 0.25) (end 2.25 -1.35) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.95 -1.35) (end 2.95 6.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        (fp_line (start 2.95 6.25) (end -2.95 6.25) (stroke (width 0.1) (type solid)) (layer "${side}.Fab"))
+        `
+    const positive_left_courtyard = (side) => `
+        (fp_line (start -3.45 -1.85) (end -3.45 10.5) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
+        (fp_line (start -3.45 10.5) (end 3.45 10.5) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
+        (fp_line (start 3.45 -1.85) (end -3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
+        (fp_line (start 3.45 10.5) (end 3.45 -1.85) (stroke (width 0.05) (type solid)) (layer "${side}.CrtYd"))
+        `
+    const positive_right_pad_2nd_gnd = p.reversible && p.use_3_thru_holes
       ? `(pad "3" thru_hole roundrect (at 3 0 ${p.r}) (size 1.2 1.75) (drill 0.75) (layers "*.Cu" "*.Mask") (roundrect_rratio 0.20) ${p.BAT_N.str})`
       : ``
-    const front_pads = `
+    const positive_right_pads = `
         (pad "1" thru_hole roundrect (at -1 0 ${p.r}) (size 1.2 1.75) (drill 0.75) (layers "*.Cu" "*.Mask") (roundrect_rratio 0.20) ${p.BAT_N.str})
         (pad "2" thru_hole oval (at 1 0 ${p.r}) (size 1.2 1.75) (drill 0.75) (layers "*.Cu" "*.Mask") ${p.BAT_P.str})
-        ${front_pad_2nd_gnd}
+        ${positive_right_pad_2nd_gnd}
         `
-    const back_pad_2nd_gnd = p.reversible && p.use_3_thru_holes
+    const positive_left_pad_2nd_gnd = p.reversible && p.use_3_thru_holes
       ? `(pad "3" thru_hole roundrect (at -3 0 ${p.r}) (size 1.2 1.75) (drill 0.75) (layers "*.Cu" "*.Mask") (roundrect_rratio 0.20) ${p.BAT_N.str})`
       : ``
-    const back_pads = `
+    const positive_left_pads = `
         (pad "1" thru_hole roundrect (at 1 0 ${p.r}) (size 1.2 1.75) (drill 0.75) (layers "*.Cu" "*.Mask") (roundrect_rratio 0.20) ${p.BAT_N.str})
         (pad "2" thru_hole oval (at -1 0 ${p.r}) (size 1.2 1.75) (drill 0.75) (layers "*.Cu" "*.Mask") ${p.BAT_P.str})
-        ${back_pad_2nd_gnd}
+        ${positive_left_pad_2nd_gnd}
         `
     const reversible_pads = `
         (pad "11" thru_hole oval (at -1 0 ${p.r}) (size 1.2 1.75) (drill 0.75) (layers "*.Cu" "*.Mask") ${local_nets[0].str})
@@ -346,52 +344,77 @@ module.exports = {
     )
     `
 
+    // Select the correct fabrication, courtyard, and silkscreen based on the side and polarity.
+    let fabrication = null;
+    let fabrication_reverse_side = null;
+    let courtyard = null;
+    let courtyard_reverse_side = null;
+    let silkscreen = null;
+    let silkscreen_reverse_side = null;
+    if ((p.side == "F" && p.housing_positive_on_left) || (p.side == "B" && !p.housing_positive_on_left)) {
+      fabrication = positive_left_fabrication;
+      fabrication_reverse_side = positive_right_fabrication;
+      courtyard = positive_left_courtyard;
+      silkscreen = positive_left_silkscreen;
+      silkscreen_reverse_side = positive_right_silkscreen;
+    } else {
+      fabrication = positive_right_fabrication;
+      courtyard = positive_right_courtyard;
+      silkscreen = positive_right_silkscreen;
+      silkscreen_reverse_side = positive_left_silkscreen;
+    }
+
     let final = standard_opening;
 
     if (p.side == "F" || p.reversible) {
       if (p.include_fabrication) {
-        final += front_fabrication;
+        final += fabrication("F");
       }
       if (p.include_courtyard) {
-        final += front_courtyard;
+        final += courtyard(p.side);
       }
     }
     if (p.include_silkscreen && p.side == "F") {
-      final += front_silkscreen("F");
-
-      // Add silkscreen on back side in these cases:
-      if ((p.reversible && p.use_3_thru_holes) ||  // Case 1: Reversible PCB using 3 through holes.
-          (!p.reversible && p.include_silkscreen_on_both_sides)) { // Case 2: Non-reversible PCB with silkscreen on both sides
-        final += front_silkscreen("B");
-      } else if (p.reversible && !p.use_3_thru_holes) { // Case 3: Reversible PCB without 3 pins
-        final += back_silkscreen("B");
+      final += silkscreen("F");
+      // Add silkscreen on back side.
+      if (p.reversible) {
+        if (p.use_3_thru_holes) {
+          final += silkscreen_reverse_side("B", -2);
+        } else {
+          final += silkscreen_reverse_side("B");
+        }
+      } else if (p.include_silkscreen_on_both_sides) {
+        final += silkscreen("B");
       }
     }
     if (p.side == "B" || p.reversible) {
       if (p.include_fabrication) {
-        final += back_fabrication;
+        final += fabrication("B");
       }
       if (p.include_courtyard) {
-        final += back_courtyard;
+        final += courtyard("B");
       }
     }
     if (p.include_silkscreen && p.side == "B") {
-      final += back_silkscreen("B");
+      final += silkscreen("B");
 
-      // Add silkscreen on front side in these cases:
-      if ((p.reversible && p.use_3_thru_holes) ||  // Case 1: Reversible PCB using 3 through holes.
-          (!p.reversible && p.include_silkscreen_on_both_sides)) { // Case 2: Non-reversible PCB with silkscreen on both sides
-        final += back_silkscreen("F");
-      } else if (p.reversible && !p.use_3_thru_holes) { // Case 3: Reversible PCB without 3 pins
-        final += front_silkscreen("F");
+      if (p.reversible) {
+        if (p.use_3_thru_holes) {
+          final += silkscreen_reverse_side("F", -2);
+        } else {
+          final += silkscreen_reverse_side("F");
+        }
+      } else if (p.include_silkscreen_on_both_sides) {
+        final += silkscreen("F");
       }
     }
+
     if (p.reversible && !p.use_3_thru_holes) {
       final += reversible_pads;
-    } else if (p.side == "F") {
-      final += front_pads;
-    } else if (p.side == "B") {
-      final += back_pads;
+    } else if ((p.side == "F" && !p.housing_positive_on_left) || (p.side == "B" && p.housing_positive_on_left)) {
+      final += positive_right_pads;
+    } else if (p.side == "B" && !p.housing_positive_on_left || (p.side == "F" && p.housing_positive_on_left)) {
+      final += positive_left_pads;
     }
     if (p.battery_connector_3dmodel_filename) {
       final += battery_connector_3dmodel
