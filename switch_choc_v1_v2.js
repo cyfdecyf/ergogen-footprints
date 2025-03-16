@@ -34,6 +34,9 @@
 //      if true it will include traces and vias when hotswap is true, footprint is reversible
 //      and when no plated holes are used, to simplify routing. In the other cases it's simply
 //      not needed.
+//    include_traces_vias_no_gnd: default is false
+//      if true, will not connect the vias to the ground plate, effective only when
+//      include_traces_vias is true. Useful when using ground fill.
 //    trace_width: default is 0.200mm
 //      allows to override the trace width that connects the pads. Not recommended
 //      to go below 0.15mm (JLCPC min is 0.127mm), or above 0.200mm to avoid DRC errors.
@@ -185,6 +188,7 @@ module.exports = {
     reversible: false,
     hotswap_pads_same_side: false,
     include_traces_vias: true,
+    include_traces_vias_no_gnd: false,
     trace_width: 0.2,
     via_size: 0.6,
     via_drill: 0.3,
@@ -511,47 +515,7 @@ module.exports = {
   )
     `
 
-    const hotswap_routes_unplated = `
-	(segment
-		(start ${p.eaxy(3.275, -5.95)})
-		(end ${p.eaxy(1.2, -3.875)})
-		(width ${p.trace_width})
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(layer "F.Cu")
-		(net ${p.from.index})
-	)
-	(segment
-		(start ${p.eaxy(1.2, -3.875)})
-		(end ${p.eaxy(0, -3.875)})
-		(width ${p.trace_width})
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(layer "F.Cu")
-		(net ${p.from.index})
-	)
-	(via
-		(at ${p.eaxy(0, -3.875)})
-		(size ${p.via_size})
-    (drill ${p.via_drill})
-		(layers "F.Cu" "B.Cu")
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(net ${p.from.index})
-	)
-	(segment
-		(start ${p.eaxy(-1.2, -3.875)})
-		(end ${p.eaxy(0, -3.875)})
-		(width ${p.trace_width})
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(layer "B.Cu")
-		(net ${p.from.index})
-	)
-	(segment
-		(start ${p.eaxy(-3.275, -5.95)})
-		(end ${p.eaxy(-1.2, -3.875)})
-		(width ${p.trace_width})
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(layer "B.Cu")
-		(net ${p.from.index})
-	)
+    const hotswap_routes_unplated_gnd_net = `
 	(segment
 		(start ${p.eaxy(-6.421, -1.896)})
 		(end ${p.eaxy(-2.154, -1.896)})
@@ -626,6 +590,77 @@ module.exports = {
 	)
     `
 
+    const hotswap_routes_unplated = `
+	(segment
+		(start ${p.eaxy(3.275, -5.95)})
+		(end ${p.eaxy(1.2, -3.875)})
+		(width ${p.trace_width})
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(layer "F.Cu")
+		(net ${p.from.index})
+	)
+	(segment
+		(start ${p.eaxy(1.2, -3.875)})
+		(end ${p.eaxy(0, -3.875)})
+		(width ${p.trace_width})
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(layer "F.Cu")
+		(net ${p.from.index})
+	)
+	(via
+		(at ${p.eaxy(0, -3.875)})
+		(size ${p.via_size})
+    (drill ${p.via_drill})
+		(layers "F.Cu" "B.Cu")
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(net ${p.from.index})
+	)
+	(segment
+		(start ${p.eaxy(-1.2, -3.875)})
+		(end ${p.eaxy(0, -3.875)})
+		(width ${p.trace_width})
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(layer "B.Cu")
+		(net ${p.from.index})
+	)
+	(segment
+		(start ${p.eaxy(-3.275, -5.95)})
+		(end ${p.eaxy(-1.2, -3.875)})
+		(width ${p.trace_width})
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(layer "B.Cu")
+		(net ${p.from.index})
+	)
+  ${p.include_traces_vias_no_gnd ? '' : hotswap_routes_unplated_gnd_net}
+    `
+
+    const hotswap_routes_same_side_gnd_net = `
+	(segment
+		(start ${p.eaxy(-7.775, -3.75)})
+		(end ${p.eaxy(-7.775, -5.95)})
+		(width ${p.trace_width})
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(layer "F.Cu")
+		(net ${p.to.index})
+	)
+	(via
+		(at ${p.eaxy(-7.775, -5.95)})
+		(size ${p.via_size})
+    (drill ${p.via_drill})
+		(layers "F.Cu" "B.Cu")
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(net ${p.to.index})
+	)
+	(segment
+		(start ${p.eaxy(-3.275, -5.95)})
+		(end ${p.eaxy(-7.775, -5.95)})
+		(width ${p.trace_width})
+    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+		(layer "B.Cu")
+		(net ${p.to.index})
+	)
+      ` 
+
     const hotswap_routes_same_side = `
   (segment
 		(start ${p.eaxy(3.275, -5.95)})
@@ -651,30 +686,7 @@ module.exports = {
 		(layer "B.Cu")
 		(net ${p.from.index})
 	)
-	(segment
-		(start ${p.eaxy(-7.775, -3.75)})
-		(end ${p.eaxy(-7.775, -5.95)})
-		(width ${p.trace_width})
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(layer "F.Cu")
-		(net ${p.to.index})
-	)
-	(via
-		(at ${p.eaxy(-7.775, -5.95)})
-		(size ${p.via_size})
-    (drill ${p.via_drill})
-		(layers "F.Cu" "B.Cu")
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(net ${p.to.index})
-	)
-	(segment
-		(start ${p.eaxy(-3.275, -5.95)})
-		(end ${p.eaxy(-7.775, -5.95)})
-		(width ${p.trace_width})
-    (locked ${p.locked_traces_vias ? 'yes' : 'no'})
-		(layer "B.Cu")
-		(net ${p.to.index})
-	)
+  ${p.include_traces_vias_no_gnd ? '' : hotswap_routes_same_side_gnd_net}
     `
 
     let final = common_top
