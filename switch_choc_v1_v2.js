@@ -515,6 +515,41 @@ module.exports = {
   )
     `
 
+    const hotswap_routes_unplated_pad_to_direct_solder_net = `
+    (segment
+      (start ${p.eaxy(0, -3.625)})
+      (end ${p.eaxy(-0.955, -3.625)})
+      (width ${p.trace_width})
+      (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+      (layer "F.Cu")
+      (net ${p.from.index})
+    )
+    (segment
+      (start ${p.eaxy(-0.955, -3.625)})
+      (end ${p.eaxy(-2.81, -1.77)})
+      (width ${p.trace_width})
+      (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+      (layer "F.Cu")
+      (net ${p.from.index})
+    )
+    (segment
+      (start ${p.eaxy(-2.81, -1.77)})
+      (end ${p.eaxy(-2.81, 3.09)})
+      (width ${p.trace_width})
+      (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+      (layer "F.Cu")
+      (net ${p.from.index})
+    )
+    (segment
+      (start ${p.eaxy(-2.81, 3.09)})
+      (end ${p.eaxy(0, 5.9)})
+      (width ${p.trace_width})
+      (locked ${p.locked_traces_vias ? 'yes' : 'no'})
+      (layer "F.Cu")
+      (net ${p.from.index})
+    )
+    `
+
     const hotswap_routes_unplated_gnd_net = `
 	(segment
 		(start ${p.eaxy(-6.421, -1.896)})
@@ -631,7 +666,7 @@ module.exports = {
 		(layer "B.Cu")
 		(net ${p.from.index})
 	)
-  ${p.include_traces_vias_no_gnd ? '' : hotswap_routes_unplated_gnd_net}
+  ${p.include_traces_vias_no_gnd ? (p.solder ? hotswap_routes_unplated_pad_to_direct_solder_net : '') : hotswap_routes_unplated_gnd_net}
     `
 
     const hotswap_routes_same_side_gnd_net = `
